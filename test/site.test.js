@@ -86,3 +86,11 @@ test('accessibility widget is on every page and works without a flash', async ()
   assert.doesNotMatch(html, /keeps? you (safe|protected) from lawsuits/i);
   assert.strictEqual((await fetch(`${base}/accessibility`)).status, 200);
 });
+
+test('static assets are fingerprinted by content', async () => {
+  const crypto = require('crypto');
+  const hash = crypto.createHash('sha1');
+  ['css/main.css', 'js/main.js'].forEach((f) => hash.update(fs.readFileSync(path.join(__dirname, '..', 'public', f))));
+  const html = await (await fetch(`${base}/`)).text();
+  assert.ok(html.includes(`/css/main.css?v=${hash.digest('hex').slice(0, 10)}`));
+});

@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { business, services, areas, moods, packages, policies, inquiryOccasions } = require('./content');
@@ -20,12 +21,15 @@ const esc = (s = '') => String(s)
 const money = (n) => `$${Number(n).toLocaleString('en-US')}`;
 const abs = (p) => `${SITE_URL}${p}`;
 
-// Asset fingerprint for cache-busting static files.
+// Asset fingerprint for cache-busting static files. Hashes file contents
+// (not mtimes, which hosts like Vercel reset on every deploy), so the URL
+// changes exactly when the CSS or JS changes.
 const ASSET_VERSION = (() => {
   try {
-    const stat = ['css/main.css', 'js/main.js'].map((f) => fs.statSync(path.join(PUBLIC_DIR, f)).mtimeMs).join('');
-    return Buffer.from(stat).toString('base64').replace(/[^a-z0-9]/gi, '').slice(-8);
-  } catch { return '1'; }
+    const hash = crypto.createHash('sha1');
+    ['css/main.css', 'js/main.js'].forEach((f) => hash.update(fs.readFileSync(path.join(PUBLIC_DIR, f))));
+    return hash.digest('hex').slice(0, 10);
+  } catch { return String(Date.now()); }
 })();
 
 /*
