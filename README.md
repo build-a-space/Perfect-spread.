@@ -9,7 +9,7 @@ npm test         # renders all 167 indexable pages and checks their SEO basics
 npm start        # production (set NODE_ENV=production)
 ```
 
-Node 18.17+ is required.
+Node 22 is required (pinned in `package.json` so Vercel uses the same version).
 
 ## Deploying to Vercel
 
