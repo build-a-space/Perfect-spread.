@@ -1,0 +1,18 @@
+{
+  "name": "perfect-spread",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Perfect Spread — luxury picnic & event experiences in Smithfield, Hampton Roads and Williamsburg, VA.",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": { "node": ">=18.17" },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.0",
+    "express": "^4.21.2"
+  }
+}
