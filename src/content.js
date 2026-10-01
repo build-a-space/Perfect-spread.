@@ -184,6 +184,9 @@ const occasions = [
   'Yoga & meditation', 'Holiday events', 'Promposals', 'Gender reveals', 'Dog dates', 'Divorce parties',
 ];
 
+// Occasion choices shown in the inquiry forms.
+const inquiryOccasions = ['Romantic picnic', 'Proposal', 'Anniversary', 'Date night', 'Birthday', 'Bridal shower', 'Baby shower', 'Bachelorette', 'Graduation / senior photos', 'Engagement party', 'Family gathering', 'Corporate event', 'Wedding / event planning', 'Other'];
+
 const themes = ['Romantic blush', 'Boho neutral', 'Garden party', 'Modern minimal', 'Candlelit evening', 'Seasonal & holiday'];
 
 /*
@@ -421,5 +424,5 @@ const faqs = [
 const testimonials = [];
 
 module.exports = {
-  business, policies, bookingSteps, packages, addOns, occasions, themes, moods, services, areas, faqs, testimonials,
+  business, policies, bookingSteps, packages, addOns, occasions, inquiryOccasions, themes, moods, services, areas, faqs, testimonials,
 };

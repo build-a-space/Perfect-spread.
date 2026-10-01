@@ -30,7 +30,7 @@
       document.body.classList.toggle('nav-open', open);
       document.body.style.overflow = open ? 'hidden' : '';
     });
-    navList.addEventListener('click', (e) => { if (e.target.closest('a')) toggle.click(); });
+    navList.addEventListener('click', (e) => { if (e.target.closest('a') && toggle.getAttribute('aria-expanded') === 'true') toggle.click(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') toggle.click(); });
   }
 
@@ -237,9 +237,8 @@
     }, 6000);
   }
 
-  /* ----------------------------------------------------- inquiry form -- */
-  const form = $('[data-inquiry]');
-  if (form && window.fetch) {
+  /* ---------------------------------------------------- inquiry forms -- */
+  if (window.fetch) $$('[data-inquiry]').forEach((form) => {
     const status = $('.form-status', form);
     const dateInput = form.elements.date;
     if (dateInput) dateInput.min = new Date().toISOString().slice(0, 10);
@@ -286,5 +285,112 @@
         btn.disabled = false;
       }
     });
+  });
+
+  /* ------------------------------------------- pull-out inquiry drawer -- */
+  const drawer = $('#inquiry-drawer');
+  const tab = $('.pull-tab');
+  if (drawer && tab) {
+    const backdrop = $('.drawer-backdrop');
+    const dForm = $('form', drawer);
+    let lastFocus = null;
+    let closeTimer = 0;
+    const focusables = () => $$('a[href], button:not([disabled]), input:not([type=hidden]):not([tabindex="-1"]), select, textarea', drawer)
+      .filter((el) => el.offsetParent !== null);
+
+    // Prefill from the link that opened the drawer (/contact?package=…&experience=…&area=…).
+    const prefill = (href) => {
+      let q;
+      try { q = new URL(href, location.href).searchParams; } catch { return; }
+      const pkg = q.get('package'); const exp = q.get('experience'); const area = q.get('area');
+      if (pkg && dForm.elements.package) dForm.elements.package.value = pkg;
+      if (area && dForm.elements.area) dForm.elements.area.value = area;
+      if (exp) {
+        const sel = dForm.elements.occasion;
+        const word = exp.toLowerCase().split(' ')[0];
+        const match = sel && Array.from(sel.options).find((o) => o.value && (o.value.toLowerCase().includes(word) || exp.toLowerCase().includes(o.value.toLowerCase().split(' ')[0])));
+        if (match) sel.value = match.value;
+        const msg = dForm.elements.message;
+        if (msg && !msg.value.trim()) msg.value = `I’m interested in: ${exp}. `;
+      }
+    };
+
+    const open = (trigger) => {
+      clearTimeout(closeTimer);
+      lastFocus = trigger || document.activeElement;
+      drawer.hidden = false; backdrop.hidden = false;
+      drawer.getBoundingClientRect(); // commit the closed state so the slide animates
+      drawer.classList.add('is-open'); backdrop.classList.add('is-open');
+      tab.classList.add('is-hidden');
+      tab.setAttribute('aria-expanded', 'true');
+      root.classList.add('drawer-lock');
+      setTimeout(() => (finePointer ? dForm.elements.name : $('.drawer-x', drawer)).focus({ preventScroll: true }), reduced ? 0 : 350);
+    };
+    const close = () => {
+      drawer.classList.remove('is-open', 'is-dragging'); backdrop.classList.remove('is-open');
+      drawer.style.removeProperty('--drag');
+      tab.classList.remove('is-hidden');
+      tab.setAttribute('aria-expanded', 'false');
+      root.classList.remove('drawer-lock');
+      closeTimer = setTimeout(() => { drawer.hidden = true; backdrop.hidden = true; }, reduced ? 0 : 600);
+      requestAnimationFrame(() => lastFocus?.focus?.({ preventScroll: true }));
+    };
+
+    // The tab, and any link to /contact, opens the drawer instead of navigating.
+    document.addEventListener('click', (e) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const link = e.target.closest('a[data-drawer-open], a[href^="/contact"]');
+      if (!link || drawer.contains(link)) return;
+      e.preventDefault();
+      prefill(link.href);
+      open(link);
+    });
+    $$('[data-drawer-close]').forEach((el) => el.addEventListener('click', close));
+
+    document.addEventListener('keydown', (e) => {
+      if (!drawer.classList.contains('is-open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+      if (e.key === 'Tab') { // keep focus inside the dialog
+        const els = focusables();
+        const first = els[0]; const last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+
+    // Swipe right to dismiss on touch screens.
+    let sx = 0; let sy = 0; let dx = 0; let tracking = false;
+    drawer.addEventListener('touchstart', (e) => {
+      if (e.target.closest('input, select, textarea')) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; tracking = true;
+    }, { passive: true });
+    drawer.addEventListener('touchmove', (e) => {
+      if (!tracking) return;
+      const mx = e.touches[0].clientX - sx; const my = e.touches[0].clientY - sy;
+      if (!drawer.classList.contains('is-dragging')) {
+        if (Math.abs(my) > Math.abs(mx) || mx < 8) { if (Math.abs(my) > 10) tracking = false; return; }
+        drawer.classList.add('is-dragging');
+      }
+      dx = Math.max(0, mx);
+      drawer.style.setProperty('--drag', `${dx}px`);
+      backdrop.style.opacity = String(Math.max(0, 1 - dx / drawer.offsetWidth));
+    }, { passive: true });
+    drawer.addEventListener('touchend', () => {
+      if (!tracking) return;
+      tracking = false;
+      backdrop.style.removeProperty('opacity');
+      drawer.classList.remove('is-dragging');
+      if (dx > Math.min(110, drawer.offsetWidth * 0.28)) close(); else drawer.style.removeProperty('--drag');
+    });
+
+    // A gentle nudge once per visit, after the visitor has had a look around.
+    try {
+      if (!sessionStorage.getItem('ps-nudged')) {
+        setTimeout(() => {
+          if (drawer.classList.contains('is-open')) return;
+          tab.classList.add('is-nudge');
+          sessionStorage.setItem('ps-nudged', '1');
+        }, 9000);
+      }
+    } catch { /* storage unavailable: skip the nudge */ }
   }
 })();

@@ -85,6 +85,13 @@ The site ships with hand-built illustrations. To replace any of them with real p
 
 ## Inquiries
 
+Every page except `/contact` has a **pull-out tab on the right edge**. It opens a quick inquiry drawer with call, text and email shortcuts:
+
+- **Prefilled from context.** On a service, city or package page, the drawer already has the occasion, area or package selected. Any link to `/contact` on the site opens the drawer instead and prefills from that link's query string.
+- **Mobile.** The tab shrinks to an icon above the bottom controls. The drawer opens full screen, inputs use 16px text so iOS doesn't zoom, and you can swipe right to close it.
+- **Accessibility.** It's a proper modal dialog: focus is trapped inside, Escape closes it, and focus goes back to whatever opened it. Without JavaScript the tab is a plain link to `/contact`.
+- **Lead attribution.** Each inquiry records the page it was sent from (`page`), so you can see which landing pages produce leads.
+
 The form posts to `/api/inquiry`. It works with or without JavaScript, validates the input, and uses a honeypot field plus a per-IP rate limit to stop spam. Each submission is appended to `data/inquiries.jsonl`.
 
 Set `INQUIRY_WEBHOOK_URL` to forward every inquiry as JSON to Zapier, Make, Slack or a CRM.

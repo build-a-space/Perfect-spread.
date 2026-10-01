@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { business, services, areas, moods } = require('./content');
+const { business, services, areas, moods, packages, policies, inquiryOccasions } = require('./content');
 const { icon } = require('./art');
 
 // Canonical origin. Set SITE_URL once the custom domain points at Vercel;
@@ -115,9 +115,60 @@ function footer() {
 </footer>`;
 }
 
+
+/*
+ * Pull-out inquiry drawer: a tab fixed to the right edge on every page (except
+ * /contact). Without JavaScript the tab is a plain link to /contact.
+ */
+function inquiryDrawer(pagePath, ctx = {}) {
+  const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
+  const exp = (ctx.experience || '').toLowerCase();
+  const occ = exp && inquiryOccasions.find((o) => exp.includes(o.toLowerCase().split(' ')[0]) || o.toLowerCase().includes(exp.split(' ')[0]));
+  return `<a class="pull-tab" href="/contact" data-drawer-open aria-controls="inquiry-drawer" aria-expanded="false">
+  ${icon('calendar')}<span>Plan your picnic</span>
+</a>
+<div class="drawer-backdrop" data-drawer-close hidden></div>
+<aside class="drawer" id="inquiry-drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden>
+  <header class="drawer-head">
+    <div>
+      <p class="eyebrow">Inquire · reply within ${policies.responseTime}</p>
+      <h2 id="drawer-title"><span class="script">Let’s plan</span> something beautiful</h2>
+    </div>
+    <button class="drawer-x" type="button" data-drawer-close aria-label="Close inquiry form"><span></span><span></span></button>
+  </header>
+  <div class="drawer-quick">
+    <a href="tel:${business.phone}">${icon('phone')} Call</a>
+    <a href="sms:${business.phone}">${icon('heart')} Text</a>
+    <a href="mailto:${business.email}">${icon('mail')} Email</a>
+  </div>
+  <form class="inquiry drawer-form" method="post" action="/api/inquiry" data-inquiry novalidate>
+    <label class="field"><span>Your name *</span><input name="name" autocomplete="name" required maxlength="100"></label>
+    <div class="field-row stack">
+      <label class="field"><span>Email *</span><input name="email" type="email" inputmode="email" autocomplete="email" required maxlength="160"></label>
+      <label class="field"><span>Phone</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40"></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span>Event date *</span><input name="date" type="date" required></label>
+      <label class="field"><span>Guests</span><input name="guests" type="number" inputmode="numeric" min="1" max="500" value="2"></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span>Occasion</span><select name="occasion"><option value="">Select…</option>${inquiryOccasions.map((o) => opt(o, o, o === occ)).join('')}</select></label>
+      <label class="field"><span>Area</span><select name="area"><option value="">Select…</option>${areas.map((a) => opt(a.name, a.name, a.name === ctx.area)).join('')}${opt('Other', 'Other / not sure', false)}</select></label>
+    </div>
+    <label class="field"><span>Package</span><select name="package"><option value="">Not sure yet</option>${packages.map((p) => opt(p.slug, `${p.name} — $${p.price}`, p.slug === ctx.pkg)).join('')}</select></label>
+    <label class="field"><span>Your vision</span><textarea name="message" rows="3" maxlength="3000" placeholder="Colors, theme, surprises…">${ctx.experience ? esc(`I’m interested in: ${ctx.experience}${ctx.area ? ` in ${ctx.area}` : ''}. `) : ''}</textarea></label>
+    <label class="hp" aria-hidden="true">Company<input name="company" tabindex="-1" autocomplete="off"></label>
+    <input type="hidden" name="page" value="${esc(pagePath)}">
+    <button class="btn btn-accent" type="submit">Send inquiry ${icon('arrow')}</button>
+    <p class="form-status" role="status" aria-live="polite"></p>
+    <p class="fine">We hold your date for ${policies.dateHold} after your quote. Prefer more detail? <a href="/contact">Use the full form</a>.</p>
+  </form>
+</aside>`;
+}
+
 const themeColor = { picnic: '#f3c3b8', celebrate: '#f3efe6', romance: '#0f0e14' };
 
-function layout({ title, description, path: pagePath, mood = 'picnic', body, jsonld = [], crumbs, noindex = false, bodyClass = '' }) {
+function layout({ title, description, path: pagePath, mood = 'picnic', body, jsonld = [], crumbs, noindex = false, bodyClass = '', drawer = {} }) {
   const fullTitle = title.includes(business.name) ? title : `${title} | ${business.name}`;
   const ld = jsonld.filter(Boolean).map((o) => `<script type="application/ld+json">${JSON.stringify(o).replace(/</g, '\\u003c')}</script>`).join('\n');
   return `<!doctype html>
@@ -166,6 +217,7 @@ ${breadcrumbsHtml(crumbs)}
 ${body}
 </main>
 ${footer()}
+${drawer === false ? '' : inquiryDrawer(pagePath, drawer)}
 <script src="/js/main.js?v=${ASSET_VERSION}" defer></script>
 </body>
 </html>`;

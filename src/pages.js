@@ -365,6 +365,7 @@ function service(svc, area) {
       ctaLabel: 'Check availability',
       photoKey: svc.slug,
     })}${html}`,
+    drawer: { experience: svc.name, area: area && area.name },
     jsonld: [seo.service(svc, area), seo.breadcrumbs(crumbs), seo.faqPage(pageFaqs)],
   });
 }
@@ -412,6 +413,7 @@ function area(a) {
     </div></section>`).join('')}
     <section class="section"><div class="wrap narrow"><div class="section-head center"><h2 class="h-display">${esc(a.name)} picnic FAQ</h2></div>${faqList(areaFaqs, { open: 1 })}</div></section>
     ${ctaBand('picnic', { href: `/contact?area=${encodeURIComponent(a.name)}` })}`,
+    drawer: { area: a.name },
     jsonld: [seo.localBusiness(), seo.breadcrumbs(crumbs), seo.faqPage(areaFaqs)],
   });
 }
@@ -474,6 +476,7 @@ function packageDetail(p) {
     mood: p.mood,
     crumbs,
     body,
+    drawer: { pkg: p.slug },
     jsonld: [seo.packageSchema(p), seo.breadcrumbs(crumbs)],
   });
 }
@@ -529,7 +532,7 @@ function contact(query = {}) {
     area: String(query.area || '').slice(0, 40),
   };
   const opt = (v, label, sel) => `<option value="${esc(v)}"${sel ? ' selected' : ''}>${esc(label)}</option>`;
-  const occasionsOpts = ['Romantic picnic', 'Proposal', 'Anniversary', 'Date night', 'Birthday', 'Bridal shower', 'Baby shower', 'Bachelorette', 'Graduation / senior photos', 'Engagement party', 'Family gathering', 'Corporate event', 'Wedding / event planning', 'Other'];
+  const occasionsOpts = C.inquiryOccasions;
   const exp = pre.experience.toLowerCase();
   const matchOcc = occasionsOpts.find((o) => exp && (exp.includes(o.toLowerCase().split(' ')[0]) || o.toLowerCase().includes(exp.split(' ')[0])));
   const sent = query.sent === '1';
@@ -562,6 +565,7 @@ function contact(query = {}) {
         </fieldset>
         <label class="field"><span>Tell us your vision</span><textarea name="message" rows="5" maxlength="3000" placeholder="Colors, theme, surprises, dietary needs…">${pre.experience ? esc(`I’m interested in: ${pre.experience}. `) : ''}</textarea></label>
         <label class="hp" aria-hidden="true">Company<input name="company" tabindex="-1" autocomplete="off"></label>
+        <input type="hidden" name="page" value="/contact">
         <button class="btn btn-accent magnetic" type="submit">Send inquiry ${icon('arrow')}</button>
         <p class="form-status" role="status" aria-live="polite"></p>
       </form>
@@ -589,6 +593,7 @@ function contact(query = {}) {
     crumbs,
     body,
     noindex: sent,
+    drawer: false,
     jsonld: [seo.localBusiness(), seo.breadcrumbs(crumbs)],
   });
 }

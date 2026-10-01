@@ -68,3 +68,12 @@ test('inquiry API validates and stores', async () => {
   assert.ok(after.length > before.length);
   fs.writeFileSync(file, before); // leave no test data behind
 });
+
+test('pull-out inquiry drawer is on every page except /contact', async () => {
+  const svc = await (await fetch(`${base}/services/birthday-picnics/norfolk-va`)).text();
+  assert.match(svc, /id="inquiry-drawer"/);
+  assert.match(svc, /<option value="Norfolk" selected>/);
+  assert.match(svc, /name="page" value="\/services\/birthday-picnics\/norfolk-va"/);
+  const contact = await (await fetch(`${base}/contact`)).text();
+  assert.doesNotMatch(contact, /id="inquiry-drawer"/);
+});

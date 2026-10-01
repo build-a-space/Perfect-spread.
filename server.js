@@ -145,6 +145,7 @@ app.post('/api/inquiry', express.urlencoded({ extended: false, limit: '20kb' }),
     location: clean(b.location, 200),
     addons: clean(b.addons, 300),
     message: clean(b.message, 3000),
+    page: clean(b.page, 200),
   };
 
   const errors = {};
