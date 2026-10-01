@@ -103,6 +103,23 @@ The panel is non-modal, so visitors see each change live. Changes are announced 
 
 The explainer deliberately does **not** claim the widget makes the site compliant or prevents lawsuits. That claim is false, and in 2025 the FTC fined an overlay vendor $1M for making it. The real protection is the accessible code underneath: semantic HTML, keyboard support, focus management, labels and reduced-motion support. A published statement at `/accessibility` gives visitors a contact for help. The copy lives in `src/a11y.js`.
 
+## Concierge chat (demo)
+
+A chat bubble in the bottom-left corner opens a **scripted concierge**. It needs no AI service or API key. It asks:
+
+1. the visitor's name
+2. which service they want, or offers options
+3. what they're looking for
+4. their phone number or email
+
+Light keyword matching makes the replies feel natural. It recognizes services from free text (e.g. "my wife is turning 40" → Birthday Picnics), and it picks out guest counts, dates, cities and vibe words. It then recommends a package and flags custom pricing for groups over 8.
+
+The chat ends with a summary card and a **Demo mode** note: "If this was a real chat, *Name* would have been through the system and gotten a text message, and all the information and a summary would have been sent to you by text."
+
+Nothing is submitted. A **Send this as a real inquiry** button hands everything to the real inquiry drawer, prefilled.
+
+To make it live, replace the demo note in `public/js/main.js` with a call to `/api/inquiry`, and add an SMS step: a Twilio webhook, or Zapier/Make on `INQUIRY_WEBHOOK_URL`.
+
 ## Inquiries
 
 Every page except `/contact` has a **pull-out tab on the right edge**. It opens a quick inquiry drawer with call, text and email shortcuts:

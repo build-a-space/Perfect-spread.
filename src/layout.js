@@ -6,6 +6,7 @@ const path = require('path');
 const { business, services, areas, moods, packages, policies, inquiryOccasions } = require('./content');
 const { icon } = require('./art');
 const { a11yWidget, earlyScript } = require('./a11y');
+const { chatWidget } = require('./chat');
 
 // Canonical origin. Set SITE_URL once the custom domain points at Vercel;
 // until then the project's production *.vercel.app URL is used.
@@ -224,6 +225,7 @@ ${body}
 ${footer()}
 ${drawer === false ? '' : inquiryDrawer(pagePath, drawer)}
 ${a11yWidget()}
+${chatWidget()}
 <script src="/js/main.js?v=${ASSET_VERSION}" defer></script>
 </body>
 </html>`;

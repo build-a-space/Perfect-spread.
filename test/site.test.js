@@ -94,3 +94,12 @@ test('static assets are fingerprinted by content', async () => {
   const html = await (await fetch(`${base}/`)).text();
   assert.ok(html.includes(`/css/main.css?v=${hash.digest('hex').slice(0, 10)}`));
 });
+
+test('demo concierge chat is on every page with valid data', async () => {
+  const html = await (await fetch(`${base}/about`)).text();
+  assert.match(html, /id="chat-window"/);
+  const json = html.match(/<script type="application\/json" data-chat-data>([\s\S]*?)<\/script>/);
+  assert.ok(json, 'chat data present');
+  const data = JSON.parse(json[1]);
+  assert.ok(data.services.length > 10 && data.featured.every((s) => data.services.some((x) => x.slug === s)));
+});

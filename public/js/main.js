@@ -377,6 +377,250 @@
     }, true);
   }
 
+  /* ------------------------------------------ demo concierge chatbot -- */
+  const chat = $('[data-chat]');
+  if (chat) {
+    const win = $('.chat-window', chat);
+    const launcher = $('.chat-launcher', chat);
+    const log = $('[data-chat-log]', chat);
+    const chipsEl = $('[data-chat-chips]', chat);
+    const form = $('[data-chat-form]', chat);
+    const input = form.elements.text;
+    const data = JSON.parse($('[data-chat-data]', chat).textContent);
+    const svcBySlug = Object.fromEntries(data.services.map((s) => [s.slug, s]));
+    const pkgBySlug = Object.fromEntries(data.packages.map((p) => [p.slug, p]));
+
+    let step = 'idle';
+    let busy = false;
+    let lead = {};
+
+    const scrollDown = () => { log.scrollTop = log.scrollHeight; };
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+    const addMsg = (who, content) => {
+      const row = el('div', `chat-msg ${who}`);
+      const bubble = el('div', 'chat-bubble');
+      if (typeof content === 'string') bubble.textContent = content; else bubble.appendChild(content);
+      row.appendChild(bubble);
+      log.appendChild(row);
+      scrollDown();
+      return row;
+    };
+
+    const setChips = (list) => {
+      chipsEl.replaceChildren();
+      list.forEach(([label, value]) => {
+        const b = el('button', 'chat-chip', label);
+        b.type = 'button';
+        b.addEventListener('click', () => { if (!busy) handle(value ?? label, label); });
+        chipsEl.appendChild(b);
+      });
+      chipsEl.hidden = !list.length;
+      requestAnimationFrame(scrollDown); // chips shrink the log; keep the newest message in view
+    };
+
+    // Bot "types" each message with a short delay that scales with length.
+    const say = async (...msgs) => {
+      busy = true;
+      for (const m of msgs) {
+        const typing = addMsg('bot typing', el('span', 'chat-typing'));
+        $('.chat-typing', typing).append(el('i'), el('i'), el('i'));
+        typing.setAttribute('aria-hidden', 'true');
+        const len = typeof m === 'string' ? m.length : 120;
+        await new Promise((r) => setTimeout(r, isReduced() ? 120 : Math.min(1500, 420 + len * 11)));
+        typing.remove();
+        addMsg('bot', m);
+      }
+      busy = false;
+    };
+
+    /* ---- light "understanding" ---- */
+    const titleCase = (t) => t.replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+    const parseName = (t) => {
+      const cleaned = t.replace(/^(hi|hey|hello)[,!.\s]*/i, '').replace(/^(my name is|my name's|name's|i am|i'm|im|it's|its|this is|call me)\s+/i, '');
+      const words = cleaned.replace(/[^\p{L}\s'-]/gu, ' ').trim().split(/\s+/).slice(0, 2).join(' ');
+      return words ? titleCase(words.toLowerCase()) : '';
+    };
+    const findService = (t) => {
+      const low = t.toLowerCase();
+      let best = null; let bestLen = 0;
+      data.services.forEach((s) => s.keywords.forEach((k) => { if (k && low.includes(k) && k.length > bestLen) { best = s; bestLen = k.length; } }));
+      return best;
+    };
+    const months = 'january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept|sep|oct|nov|dec';
+    const extract = (t) => {
+      const low = t.toLowerCase();
+      const out = {};
+      const g = low.match(/(\d{1,3})\s*(?:people|guests|persons|adults|friends|of us|ppl|girls|ladies|kids|coworkers|employees)/) || low.match(/(?:party|group|table) of (\d{1,3})/) || low.match(/for (\d{1,3})\b(?!\s*(?:am|pm|:|hours?|hrs?))/);
+      if (g) out.guests = Number(g[1]);
+      else if (/\b(just (the )?two of us|two of us|couple|me and my|my (wife|husband|girlfriend|boyfriend|partner|fianc))/.test(low)) out.guests = 2;
+      const d = t.match(new RegExp(`\\b(?:(?:${months})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?|\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?(?:${months})|\\d{1,2}/\\d{1,2}(?:/\\d{2,4})?|(?:this|next)\\s+(?:weekend|week|month|friday|saturday|sunday|monday|tuesday|wednesday|thursday)|(?:${months}))\\b`, 'i'));
+      if (d) out.date = d[0];
+      const a = data.areas.find((x) => low.includes(x.toLowerCase()));
+      if (a) out.area = a;
+      const vibes = ['boho', 'romantic', 'pink', 'blush', 'gold', 'neutral', 'modern', 'rustic', 'garden', 'sunset', 'beach', 'waterfront', 'candle', 'floral', 'elegant', 'whimsical', 'halloween', 'christmas', 'surprise'];
+      const vibeText = data.areas.reduce((acc, x) => acc.replace(x.toLowerCase(), ' '), low); // so "Virginia Beach" isn't read as a beach vibe
+      out.vibe = vibes.filter((v) => vibeText.includes(v));
+      const p = data.packages.find((x) => low.includes(x.name.toLowerCase().split(' ')[0]) && x.slug !== 'basic-picnic');
+      if (p) out.pkg = p.slug;
+      return out;
+    };
+    const emailRe = /[^\s@]+@[^\s@]+\.[^\s@]{2,}/;
+    const phoneRe = /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
+
+    /* ---- conversation ---- */
+    const askService = () => {
+      setChips([...data.featured.map((slug) => [svcBySlug[slug].name, slug]), ['Show me options', '__options']]);
+    };
+
+    async function handle(raw, label) {
+      const text = String(raw).trim();
+      if (!text || busy) return;
+      addMsg('user', label || text);
+      setChips([]);
+
+      if (step === 'name') {
+        const name = parseName(text);
+        if (!name) { await say('Sorry, I didn’t catch that. What name should I use?'); return; }
+        lead.name = name;
+        step = 'service';
+        await say(`Lovely to meet you, ${name}! 🌸`, 'What service are you looking for, or would you like some options?');
+        askService();
+        return;
+      }
+
+      if (step === 'service') {
+        if (raw === '__options' || /\b(option|not sure|unsure|idk|don't know|dont know|help|ideas?|suggest)/i.test(text)) {
+          const list = el('div', 'chat-list');
+          list.append(el('p', null, 'Of course! Here’s what people love most:'));
+          const ul = el('ul');
+          ['luxury-picnics', 'romantic-picnics', 'proposal-picnics', 'birthday-picnics', 'bridal-shower-picnics', 'igloo-experiences', 'corporate-picnics', 'event-planning'].forEach((slug) => {
+            const s = svcBySlug[slug];
+            const li = el('li');
+            li.append(el('strong', null, s.name), document.createTextNode(` — ${s.tagline}`));
+            ul.append(li);
+          });
+          list.append(ul);
+          await say(list, 'Tap one that sounds right, or tell me in your own words.');
+          setChips(['luxury-picnics', 'romantic-picnics', 'proposal-picnics', 'birthday-picnics', 'bridal-shower-picnics', 'igloo-experiences', 'corporate-picnics', 'event-planning'].map((slug) => [svcBySlug[slug].name, slug]));
+          return;
+        }
+        const svc = svcBySlug[raw] || findService(text);
+        lead.service = svc ? svc.name : text;
+        lead.serviceSlug = svc && svc.slug;
+        step = 'details';
+        await say(
+          svc ? `${svc.name}, great choice. ${svc.tagline}` : 'That sounds wonderful. We style all kinds of occasions, so we can absolutely make that happen.',
+          'Can you tell me about what you’re looking for? Date, number of guests, where, and the vibe you’re imagining — whatever you know so far.',
+        );
+        return;
+      }
+
+      if (step === 'details') {
+        lead.details = text;
+        Object.assign(lead, extract(text));
+        if (!lead.serviceSlug) { const s = findService(text); if (s) { lead.serviceSlug = s.slug; } }
+        const bits = [];
+        if (lead.guests) bits.push(`for ${lead.guests} ${lead.guests === 1 ? 'guest' : 'guests'}`);
+        if (lead.area) bits.push(`in ${lead.area}`);
+        if (lead.date) bits.push(`around ${lead.date}`);
+        const reflect = bits.length ? `Got it — ${bits.join(', ')}${lead.vibe.length ? `, with a ${lead.vibe.slice(0, 2).join(' & ')} feel` : ''}. That’s going to be beautiful.` : 'Got it, that’s going to be beautiful.';
+        const recSlug = lead.pkg || (lead.serviceSlug && svcBySlug[lead.serviceSlug].packages[0]);
+        const rec = recSlug && pkgBySlug[recSlug];
+        const extra = [];
+        if (rec) extra.push(`Our ${rec.name} (from $${rec.price}) would be a lovely fit${lead.guests && lead.guests > 2 && lead.guests <= 8 ? `, plus $35 per extra guest` : ''}.`);
+        if (lead.guests > 8) extra.push(`Since you’re planning for more than 8 guests, ${data.business.owner} will put together custom pricing for you.`);
+        lead.recommended = rec && rec.name;
+        step = 'contact';
+        await say(reflect, ...extra, 'Last thing: what’s the best phone number or email to reach you?');
+        return;
+      }
+
+      if (step === 'contact') {
+        const email = text.match(emailRe); const phone = text.match(phoneRe);
+        if (!email && !phone) { await say('Hmm, I didn’t catch a phone number or email there. Could you share one so we can send you the details?'); return; }
+        lead.email = email && email[0];
+        lead.phone = phone && phone[0];
+        step = 'done';
+        const card = el('div', 'chat-summary');
+        card.append(el('p', 'chat-summary-h', 'Your request'));
+        const dl = el('dl');
+        [['Name', lead.name], ['Service', lead.service], ['Guests', lead.guests], ['When', lead.date], ['Where', lead.area], ['Suggested', lead.recommended], ['Contact', [lead.phone, lead.email].filter(Boolean).join(' · ')], ['Details', lead.details]]
+          .filter(([, v]) => v).forEach(([k, v]) => { dl.append(el('dt', null, k), el('dd', null, String(v))); });
+        card.append(dl);
+        const note = el('div', 'chat-demo-note');
+        note.append(el('strong', null, '✨ Demo mode'), el('p', null, `If this was a real chat, ${lead.name} would have been through the system and gotten a text message, and all the information and a summary would have been sent to you by text.`));
+        await say(`Perfect, thank you ${lead.name.split(' ')[0]}! Here’s a summary of everything:`, card, note);
+        setChips([['Send this as a real inquiry', '__real'], ['Start over', '__restart']]);
+        return;
+      }
+
+      if (step === 'done') {
+        if (raw === '__restart' || /start over|restart/i.test(text)) { start(true); return; }
+        if (raw === '__real' || /real|inquir|book|yes/i.test(text)) { sendReal(); return; }
+        await say('Want to send this as a real inquiry, or start over?');
+        setChips([['Send this as a real inquiry', '__real'], ['Start over', '__restart']]);
+      }
+    }
+
+    // Hand the conversation to the real inquiry form, prefilled.
+    function sendReal() {
+      const message = [lead.service && `Interested in: ${lead.service}.`, lead.details].filter(Boolean).join(' ');
+      const dForm = $('#inquiry-drawer form');
+      if (!dForm) {
+        location.href = `/contact?experience=${encodeURIComponent(lead.service || '')}${lead.area ? `&area=${encodeURIComponent(lead.area)}` : ''}`;
+        return;
+      }
+      const f = dForm.elements;
+      f.name.value = lead.name || '';
+      if (lead.email) f.email.value = lead.email;
+      if (lead.phone) f.phone.value = lead.phone;
+      if (lead.guests) f.guests.value = lead.guests;
+      if (lead.area) f.area.value = lead.area;
+      if (lead.pkg || (lead.serviceSlug && svcBySlug[lead.serviceSlug].packages[0])) f.package.value = lead.pkg || svcBySlug[lead.serviceSlug].packages[0];
+      f.message.value = message;
+      toggle(false);
+      $('.pull-tab').click();
+    }
+
+    async function start(restart = false) {
+      lead = {};
+      log.replaceChildren();
+      setChips([]);
+      step = 'name';
+      await say(restart ? 'Let’s start fresh!' : 'Hi there! I’m the Perfect Spread concierge.', 'I can help you plan a picnic or event in four quick questions. First, can I have your name?');
+      input.focus({ preventScroll: true });
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const v = input.value;
+      if (!v.trim() || busy) return;
+      input.value = '';
+      handle(v);
+    });
+
+    function toggle(open = win.hidden) {
+      if (open) {
+        win.hidden = false;
+        win.getBoundingClientRect();
+        win.classList.add('is-open');
+        launcher.setAttribute('aria-expanded', 'true');
+        chat.classList.add('is-open');
+        if (step === 'idle') start(); else input.focus({ preventScroll: true });
+      } else {
+        win.classList.remove('is-open');
+        launcher.setAttribute('aria-expanded', 'false');
+        chat.classList.remove('is-open');
+        setTimeout(() => { if (!win.classList.contains('is-open')) win.hidden = true; }, isReduced() ? 0 : 400);
+        launcher.focus({ preventScroll: true });
+      }
+    }
+    $$('[data-chat-toggle]', chat).forEach((b) => b.addEventListener('click', () => toggle()));
+    win.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); toggle(false); } });
+    setTimeout(() => chat.classList.add('show-label'), 3500);
+  }
+
   /* ------------------------------------------- pull-out inquiry drawer -- */
   const drawer = $('#inquiry-drawer');
   const tab = $('.pull-tab');
