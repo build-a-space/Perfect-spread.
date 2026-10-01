@@ -104,7 +104,7 @@ function packageSchema(pkg) {
 // Every indexable URL, used by sitemap.xml and the route tests.
 function allPaths() {
   return [
-    '/', '/services', '/packages', '/service-areas', '/about', '/faq', '/contact',
+    '/', '/services', '/packages', '/service-areas', '/about', '/faq', '/contact', '/accessibility',
     ...services.map((s) => `/services/${s.slug}`),
     ...services.flatMap((s) => areas.map((a) => `/services/${s.slug}/${a.slug}`)),
     ...areas.map((a) => `/service-areas/${a.slug}`),

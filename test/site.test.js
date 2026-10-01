@@ -77,3 +77,12 @@ test('pull-out inquiry drawer is on every page except /contact', async () => {
   const contact = await (await fetch(`${base}/contact`)).text();
   assert.doesNotMatch(contact, /id="inquiry-drawer"/);
 });
+
+test('accessibility widget is on every page and works without a flash', async () => {
+  const html = await (await fetch(`${base}/packages/igloo-picnic`)).text();
+  assert.match(html, /id="a11y-panel"/);
+  assert.match(html, /data-a11y="contrast"/);
+  assert.match(html, /localStorage.getItem\('ps-a11y'\)/, 'preferences applied in <head>');
+  assert.doesNotMatch(html, /keeps? you (safe|protected) from lawsuits/i);
+  assert.strictEqual((await fetch(`${base}/accessibility`)).status, 200);
+});

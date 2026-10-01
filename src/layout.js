@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { business, services, areas, moods, packages, policies, inquiryOccasions } = require('./content');
 const { icon } = require('./art');
+const { a11yWidget, earlyScript } = require('./a11y');
 
 // Canonical origin. Set SITE_URL once the custom domain points at Vercel;
 // until then the project's production *.vercel.app URL is used.
@@ -110,7 +111,7 @@ function footer() {
   </div>
   <div class="wrap footer-base">
     <p>© ${new Date().getFullYear()} ${esc(business.name)} · Luxury picnics &amp; events in Smithfield, Hampton Roads &amp; Williamsburg, Virginia</p>
-    <p><a href="/sitemap.xml">Sitemap</a></p>
+    <p><a href="/accessibility">Accessibility</a> · <a href="/sitemap.xml">Sitemap</a></p>
   </div>
 </footer>`;
 }
@@ -203,7 +204,7 @@ ${noindex ? '<meta name="robots" content="noindex, follow">' : '<meta name="robo
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&family=Pinyon+Script&display=swap">
 <link rel="stylesheet" href="/css/main.css?v=${ASSET_VERSION}">
-<script>document.documentElement.classList.add('js')</script>
+<script>${earlyScript}</script>
 ${ld}
 </head>
 <body class="${bodyClass}">
@@ -218,6 +219,7 @@ ${body}
 </main>
 ${footer()}
 ${drawer === false ? '' : inquiryDrawer(pagePath, drawer)}
+${a11yWidget()}
 <script src="/js/main.js?v=${ASSET_VERSION}" defer></script>
 </body>
 </html>`;

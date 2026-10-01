@@ -243,6 +243,16 @@ const icons = {
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   check: '<path d="M5 12l5 5L20 7"/>',
+  access: '<circle cx="12" cy="4.6" r="1.9"/><path d="M4.5 8.6l7.5 1.6 7.5-1.6M12 10.2v4.4M12 14.6l-3.2 6.2M12 14.6l3.2 6.2"/>',
+  textsize: '<path d="M3 19l5-13 5 13M4.8 14.5h6.4M15 19l3-8 3 8M15.9 16.5h4.2"/>',
+  contrast: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  font: '<path d="M5 19V6h9M5 12h7M15 19l2.5-7 2.5 7M15.8 17h3.4"/>',
+  spacing: '<path d="M4 6h16M4 12h16M4 18h16M2 9l2-3 2 3M2 15l2 3 2-3"/>',
+  pause: '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>',
+  cursor: '<path d="M6 3l12 7.5-5.2 1.3 3.4 6.7-2.6 1.3-3.4-6.7L6 17z"/>',
+  reset: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/>',
+  shield: '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/>',
   sparkle: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
 };
 

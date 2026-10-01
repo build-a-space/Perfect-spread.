@@ -5,7 +5,9 @@
   const root = document.documentElement;
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+  // True when the OS asks for less motion or the visitor paused animations in the accessibility panel.
+  const isReduced = () => motionQuery.matches || root.hasAttribute('data-a11y-motion');
   const finePointer = matchMedia('(pointer: fine)').matches;
   const themeColors = { picnic: '#f3c3b8', celebrate: '#f3efe6', romance: '#0f0e14' };
   const metaTheme = $('meta[name="theme-color"]');
@@ -66,7 +68,7 @@
       const idx = Math.max(0, Math.min(keys.length - 1, i));
       chosenMood = keys[idx];
       const y = top + (span * (idx + 0.5)) / keys.length;
-      scrollTo({ top: idx === 0 ? top : y, behavior: reduced ? 'auto' : 'smooth' });
+      scrollTo({ top: idx === 0 ? top : y, behavior: isReduced() ? 'auto' : 'smooth' });
     };
 
     tabs.forEach((t, i) => t.addEventListener('click', () => goTo(i)));
@@ -119,7 +121,7 @@
         const items = $$('.step', list);
         items.forEach((s, n) => s.classList.toggle('is-lit', p >= n / Math.max(1, items.length - 1) - 0.02));
       });
-      if (!reduced) root.style.setProperty('--sy', String(Math.min(1, scrollY / innerHeight)));
+      if (!isReduced()) root.style.setProperty('--sy', String(Math.min(1, scrollY / innerHeight)));
     });
   }
   addEventListener('scroll', onScroll, { passive: true });
@@ -127,11 +129,11 @@
   onScroll();
 
   /* ----------------------------------------------- pointer parallax -- */
-  if (!reduced && finePointer) {
+  if (finePointer) {
     const scenes = $$('.stage-scene, .page-hero-scene');
     let raf = 0;
     addEventListener('pointermove', (e) => {
-      if (raf) return;
+      if (raf || isReduced()) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
         const x = (e.clientX / innerWidth - 0.5) * 2;
@@ -150,6 +152,7 @@
     // Magnetic buttons.
     $$('.magnetic').forEach((btn) => {
       btn.addEventListener('pointermove', (e) => {
+        if (isReduced()) return;
         const r = btn.getBoundingClientRect();
         const dx = e.clientX - (r.left + r.width / 2);
         const dy = e.clientY - (r.top + r.height / 2);
@@ -164,6 +167,7 @@
     // Subtle 3D tilt.
     $$('.tilt').forEach((el) => {
       el.addEventListener('pointermove', (e) => {
+        if (isReduced()) return;
         const r = el.getBoundingClientRect();
         el.style.setProperty('--ry', `${(((e.clientX - r.left) / r.width) - 0.5) * 10}deg`);
         el.style.setProperty('--rx', `${(0.5 - ((e.clientY - r.top) / r.height)) * 10}deg`);
@@ -178,7 +182,7 @@
     const sibs = Array.from(el.parentElement.children).filter((c) => c.classList.contains('reveal'));
     if (sibs.length > 1 && !el.style.getPropertyValue('--i')) el.style.setProperty('--i', String(Math.min(sibs.indexOf(el), 6)));
   });
-  if ('IntersectionObserver' in window && !reduced) {
+  if ('IntersectionObserver' in window && !isReduced()) {
     const io = new IntersectionObserver((entries) => entries.forEach((en) => {
       if (en.isIntersecting) { en.target.classList.add('is-in'); io.unobserve(en.target); }
     }), { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
@@ -228,9 +232,10 @@
 
   /* ---------------------------------------------------- testimonials -- */
   const quotes = $$('[data-quotes] .quote');
-  if (quotes.length > 1 && !reduced) {
+  if (quotes.length > 1) {
     let q = 0;
     setInterval(() => {
+      if (isReduced()) return;
       quotes[q].classList.remove('is-active');
       q = (q + 1) % quotes.length;
       quotes[q].classList.add('is-active');
@@ -287,6 +292,91 @@
     });
   });
 
+  /* ------------------------------------------- accessibility widget -- */
+  const a11yPanel = $('#a11y-panel');
+  const a11yTab = $('[data-a11y-open]');
+  if (a11yPanel && a11yTab) {
+    const KEY = 'ps-a11y';
+    const opts = $$('[data-a11y]', a11yPanel);
+    let prefs = {};
+    try { prefs = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { prefs = {}; }
+
+    const live = document.createElement('p');
+    live.className = 'sr';
+    live.setAttribute('aria-live', 'polite');
+    a11yPanel.appendChild(live);
+
+    const apply = () => {
+      opts.forEach((btn) => {
+        const key = btn.dataset.a11y;
+        const v = Number(prefs[key]) || 0;
+        if (v) root.setAttribute(`data-a11y-${key}`, String(v)); else root.removeAttribute(`data-a11y-${key}`);
+        btn.setAttribute('aria-pressed', String(v > 0));
+        btn.dataset.level = String(v);
+      });
+      try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode: settings last for this page view */ }
+      onScroll();
+    };
+
+    opts.forEach((btn) => btn.addEventListener('click', () => {
+      const key = btn.dataset.a11y;
+      const levels = Number(btn.dataset.levels) || 1;
+      prefs[key] = ((Number(prefs[key]) || 0) + 1) % (levels + 1);
+      apply();
+      const label = $('.a11y-opt-label', btn).textContent;
+      live.textContent = prefs[key] ? `${label} on${levels > 1 ? `, level ${prefs[key]} of ${levels}` : ''}` : `${label} off`;
+    }));
+    $('[data-a11y-reset]', a11yPanel).addEventListener('click', () => {
+      prefs = {};
+      apply();
+      live.textContent = 'All accessibility settings reset';
+    });
+    apply();
+
+    // "Adjust" / "Why it's here" tabs.
+    const tabs = $$('[role="tab"]', a11yPanel);
+    const select = (t) => tabs.forEach((x) => {
+      const on = x === t;
+      x.setAttribute('aria-selected', String(on));
+      x.tabIndex = on ? 0 : -1;
+      $(`#${x.getAttribute('aria-controls')}`).hidden = !on;
+    });
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        e.preventDefault();
+        const n = tabs[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length];
+        n.focus();
+        select(n);
+      });
+    });
+
+    // Non-modal panel: the page stays visible so changes can be seen live.
+    let hideTimer = 0;
+    const openPanel = () => {
+      clearTimeout(hideTimer);
+      a11yPanel.hidden = false;
+      a11yPanel.getBoundingClientRect(); // commit the closed state so the slide animates
+      a11yPanel.classList.add('is-open');
+      a11yTab.setAttribute('aria-expanded', 'true');
+      setTimeout(() => opts[0].focus({ preventScroll: true }), isReduced() ? 0 : 300);
+    };
+    const closePanel = (returnFocus = true) => {
+      a11yPanel.classList.remove('is-open');
+      a11yTab.setAttribute('aria-expanded', 'false');
+      hideTimer = setTimeout(() => { a11yPanel.hidden = true; }, isReduced() ? 0 : 600);
+      if (returnFocus) a11yTab.focus({ preventScroll: true });
+    };
+    a11yTab.addEventListener('click', () => (a11yPanel.classList.contains('is-open') ? closePanel() : openPanel()));
+    $('[data-a11y-close]', a11yPanel).addEventListener('click', () => closePanel());
+    a11yPanel.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closePanel(); } });
+    // Opening the booking drawer tucks this panel away.
+    document.addEventListener('click', (e) => {
+      if (a11yPanel.classList.contains('is-open') && !a11yPanel.contains(e.target) && e.target.closest('.pull-tab, a[href^="/contact"]')) closePanel(false);
+    }, true);
+  }
+
   /* ------------------------------------------- pull-out inquiry drawer -- */
   const drawer = $('#inquiry-drawer');
   const tab = $('.pull-tab');
@@ -324,7 +414,7 @@
       tab.classList.add('is-hidden');
       tab.setAttribute('aria-expanded', 'true');
       root.classList.add('drawer-lock');
-      setTimeout(() => (finePointer ? dForm.elements.name : $('.drawer-x', drawer)).focus({ preventScroll: true }), reduced ? 0 : 350);
+      setTimeout(() => (finePointer ? dForm.elements.name : $('.drawer-x', drawer)).focus({ preventScroll: true }), isReduced() ? 0 : 350);
     };
     const close = () => {
       drawer.classList.remove('is-open', 'is-dragging'); backdrop.classList.remove('is-open');
@@ -332,7 +422,7 @@
       tab.classList.remove('is-hidden');
       tab.setAttribute('aria-expanded', 'false');
       root.classList.remove('drawer-lock');
-      closeTimer = setTimeout(() => { drawer.hidden = true; backdrop.hidden = true; }, reduced ? 0 : 600);
+      closeTimer = setTimeout(() => { drawer.hidden = true; backdrop.hidden = true; }, isReduced() ? 0 : 600);
       requestAnimationFrame(() => lastFocus?.focus?.({ preventScroll: true }));
     };
 

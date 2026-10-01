@@ -83,6 +83,26 @@ The site ships with hand-built illustrations. To replace any of them with real p
 | `ashlie-hampton` | The founder portrait |
 | `og-image` | The social share image (1200×630) |
 
+## Accessibility widget
+
+Every page has an **Accessibility** tab centered on the left edge. It opens a panel with two parts.
+
+**Adjust** has working display settings. They're saved per device in `localStorage` and applied in `<head>` before the page paints, so there's no flash:
+
+- larger text (3 levels)
+- high contrast
+- highlight links
+- readable font, which replaces the script lettering
+- WCAG text spacing
+- pause animations, which also stops parallax, the marquee and scroll effects
+- large cursor
+
+The panel is non-modal, so visitors see each change live. Changes are announced to screen readers.
+
+**Why it's here** is a plain-language explainer for business owners: what the widget is, why accessibility matters (CDC disability figures, DOJ guidance under ADA Title III), and what actually reduces ADA lawsuit risk.
+
+The explainer deliberately does **not** claim the widget makes the site compliant or prevents lawsuits. That claim is false, and in 2025 the FTC fined an overlay vendor $1M for making it. The real protection is the accessible code underneath: semantic HTML, keyboard support, focus management, labels and reduced-motion support. A published statement at `/accessibility` gives visitors a contact for help. The copy lives in `src/a11y.js`.
+
 ## Inquiries
 
 Every page except `/contact` has a **pull-out tab on the right edge**. It opens a quick inquiry drawer with call, text and email shortcuts:

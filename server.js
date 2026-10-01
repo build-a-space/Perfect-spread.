@@ -99,6 +99,7 @@ app.get('/packages/:pkg', (req, res, next) => {
 });
 app.get('/about', (req, res) => html(res, cached('/about', pages.about)));
 app.get('/faq', (req, res) => html(res, cached('/faq', pages.faqPage)));
+app.get('/accessibility', (req, res) => html(res, cached('/accessibility', pages.accessibility)));
 app.get('/contact', (req, res) => {
   res.set('Cache-Control', 'no-store');
   html(res, pages.contact(req.query));

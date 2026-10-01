@@ -4,6 +4,7 @@ const C = require('./content');
 const seo = require('./seo');
 const { heroScene, cardScene, icon } = require('./art');
 const { layout, esc, money, media } = require('./layout');
+const { builtIn } = require('./a11y');
 
 const { business, policies, packages, services, areas, moods, faqs } = C;
 
@@ -598,6 +599,32 @@ function contact(query = {}) {
   });
 }
 
+function accessibility() {
+  const crumbs = [{ name: 'Home', path: '/' }, { name: 'Accessibility', path: '/accessibility' }];
+  return layout({
+    title: 'Accessibility Statement',
+    description: `${business.name} is committed to a website everyone can use. Learn how this site follows WCAG 2.1 AA and how to reach us if anything is hard to use.`,
+    path: '/accessibility',
+    mood: 'celebrate',
+    crumbs,
+    body: `${pageHero({ mood: 'celebrate', eyebrow: 'Accessibility statement', script: 'Everyone', title: 'deserves a seat at the table', lede: 'We want booking a picnic to be easy for every guest, including people who use assistive technology.', ctaHref: `mailto:${business.email}`, ctaLabel: 'Tell us what’s not working' })}
+    <section class="section"><div class="wrap narrow">
+      <h2 class="h-display reveal">Our commitment</h2>
+      <p class="reveal">${esc(business.name)} aims to meet the <strong>Web Content Accessibility Guidelines (WCAG) 2.1, Level AA</strong>. We design and test this site so that it works with screen readers, keyboard navigation, screen magnification and voice control.</p>
+      <h2 class="h-sub reveal">What we’ve built in</h2>
+      <ul class="checks reveal">${builtIn.map((b) => `<li>${icon('check')}<span>${b}</span></li>`).join('')}</ul>
+      <h2 class="h-sub reveal">Display settings</h2>
+      <p class="reveal">Use the <strong>Accessibility</strong> tab on the left edge of any page to enlarge text, increase contrast, highlight links, switch to a plainer font, add text spacing, pause animations or enlarge the cursor. Your choices are saved on your device.</p>
+      <h2 class="h-sub reveal">Known limitations</h2>
+      <p class="reveal">Decorative script lettering can be harder to read for some visitors. Turn on “Readable font” to replace it. If you find anything else that gets in your way, please tell us.</p>
+      <h2 class="h-sub reveal">Get help or give feedback</h2>
+      <p class="reveal">If you have trouble using any part of this site, email <a href="mailto:${business.email}">${business.email}</a> or call <a href="tel:${business.phone}">${business.phoneDisplay}</a>. We’ll help you book directly and work to fix the problem. We aim to reply within ${policies.responseTime}.</p>
+      <p class="fine reveal">Last reviewed: October 2026.</p>
+    </div></section>`,
+    jsonld: [seo.breadcrumbs(crumbs)],
+  });
+}
+
 function notFound() {
   return layout({
     title: 'Page not found',
@@ -609,4 +636,4 @@ function notFound() {
   });
 }
 
-module.exports = { home, servicesIndex, service, areasIndex, area, packagesIndex, packageDetail, about, faqPage, contact, notFound };
+module.exports = { home, servicesIndex, service, areasIndex, area, packagesIndex, packageDetail, about, faqPage, contact, accessibility, notFound };
