@@ -11,6 +11,23 @@ npm start        # production (set NODE_ENV=production)
 
 Node 18.17+ is required.
 
+## Deploying to Vercel
+
+The repo is ready for Vercel with no build step:
+
+- `api/index.js` exports the Express app as a single serverless function.
+- `vercel.json` sends every non-file request to that function. Files in `public/` (CSS, JS, images) are served straight from Vercel's CDN with long-lived cache headers.
+- Rendered pages are cached at the edge for an hour (`s-maxage=3600`, then stale-while-revalidate).
+
+To deploy, import the GitHub repo in Vercel and keep the defaults. Every push to the production branch deploys automatically; other branches get preview URLs.
+
+Environment variables to set in the Vercel project:
+
+| Variable | Purpose |
+|---|---|
+| `SITE_URL` | Canonical domain, e.g. `https://perfectspread.org`. Set it once the domain points at Vercel; until then the project's `*.vercel.app` URL is used. |
+| `INQUIRY_WEBHOOK_URL` | Where inquiries are sent. **Required on Vercel**: the filesystem is read-only, so `data/inquiries.jsonl` is only written when running on a normal server. Inquiries also appear in the function logs as `INQUIRY {...}`. |
+
 ## What's in it
 
 **The homepage changes mood as you scroll.** The hero stays pinned while the visitor scrolls through three experiences, and the whole site re-themes to match each one:

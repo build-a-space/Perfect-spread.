@@ -5,7 +5,11 @@ const path = require('path');
 const { business, services, areas, moods } = require('./content');
 const { icon } = require('./art');
 
-const SITE_URL = (process.env.SITE_URL || 'https://perfectspread.org').replace(/\/$/, '');
+// Canonical origin. Set SITE_URL once the custom domain points at Vercel;
+// until then the project's production *.vercel.app URL is used.
+const SITE_URL = (process.env.SITE_URL
+  || (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+  || 'https://perfectspread.org').replace(/\/$/, '');
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
 const esc = (s = '') => String(s)

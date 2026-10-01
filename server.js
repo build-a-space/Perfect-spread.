@@ -13,7 +13,8 @@ const { SITE_URL } = require('./src/layout');
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
-const isProd = process.env.NODE_ENV === 'production';
+const isServerless = Boolean(process.env.VERCEL);
+const isProd = process.env.NODE_ENV === 'production' || isServerless;
 
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
@@ -60,7 +61,12 @@ app.use(express.static(path.join(__dirname, 'public'), {
   },
 }));
 
-const html = (res, body, status = 200) => res.status(status).type('html').set('Cache-Control', 'public, max-age=300').send(body);
+// On Vercel the CDN caches rendered pages; browsers always revalidate.
+const PAGE_CACHE = isServerless ? 'public, max-age=0, s-maxage=3600, stale-while-revalidate=86400' : 'public, max-age=300';
+const html = (res, body, status = 200) => {
+  if (!res.get('Cache-Control')) res.set('Cache-Control', PAGE_CACHE);
+  return res.status(status).type('html').send(body);
+};
 
 // Pages are rendered once and cached in memory (contact varies by query string).
 const cache = new Map();
@@ -147,19 +153,32 @@ app.post('/api/inquiry', express.urlencoded({ extended: false, limit: '20kb' }),
   if (!/^\d{4}-\d{2}-\d{2}$/.test(inquiry.date)) errors.date = 'Please choose your event date.';
   if (Object.keys(errors).length) return reply(422, { error: 'Please check the highlighted fields.', errors });
 
-  try {
-    await fs.promises.mkdir(DATA_DIR, { recursive: true });
-    await fs.promises.appendFile(path.join(DATA_DIR, 'inquiries.jsonl'), `${JSON.stringify(inquiry)}\n`);
-  } catch (err) {
-    console.error('Could not store inquiry', err);
+  if (isServerless) {
+    // Serverless filesystems are read-only; the inquiry is kept in the
+    // function logs and delivered via INQUIRY_WEBHOOK_URL.
+    console.log('INQUIRY', JSON.stringify(inquiry));
+  } else {
+    try {
+      await fs.promises.mkdir(DATA_DIR, { recursive: true });
+      await fs.promises.appendFile(path.join(DATA_DIR, 'inquiries.jsonl'), `${JSON.stringify(inquiry)}\n`);
+    } catch (err) {
+      console.error('Could not store inquiry', err);
+    }
   }
 
-  // Optional: forward to Zapier/Make/Slack/CRM.
+  // Forward to Zapier/Make/Slack/CRM. Awaited so serverless functions don't
+  // freeze before the request is sent.
   if (process.env.INQUIRY_WEBHOOK_URL) {
-    fetch(process.env.INQUIRY_WEBHOOK_URL, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ source: business.name, ...inquiry }),
-    }).catch((err) => console.error('Inquiry webhook failed', err.message));
+    try {
+      const r = await fetch(process.env.INQUIRY_WEBHOOK_URL, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ source: business.name, ...inquiry }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!r.ok) console.error('Inquiry webhook responded', r.status);
+    } catch (err) {
+      console.error('Inquiry webhook failed', err.message);
+    }
   }
 
   return reply(200, { ok: true, message: 'Thank you! We’ll be in touch within 24 hours.' });
